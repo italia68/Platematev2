@@ -329,13 +329,6 @@
     <div class="scroll-body" id="historyBody"></div>
   </div>
 
-  <!-- ── CARDIO TAB ── -->
-  <div id="tabCardio" style="display:none;flex-direction:column;flex:1;overflow:hidden">
-    <div class="topbar"><div class="topbar-title">Cardio</div></div>
-    <div class="scroll-body" id="cardioBody"></div>
-    <button style="position:fixed;bottom:80px;right:20px;width:60px;height:60px;border-radius:50%;background:var(--gold);color:#000;border:none;font-size:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:50;box-shadow:0 4px 20px rgba(255,182,18,0.5)" onclick="openCardioSheet()">+</button>
-  </div>
-
   <!-- ── PRs TAB ── -->
   <div id="tabPr" style="display:none;flex-direction:column;flex:1;overflow:hidden">
     <div class="topbar"><div class="topbar-title">Personal Records</div></div>
@@ -350,7 +343,6 @@
 
   <nav class="bottom-nav">
     <button class="nav-btn active" id="navHistory" onclick="switchTab('history')"><span class="ni">&#128197;</span>History</button>
-    <button class="nav-btn" id="navCardio" onclick="switchTab('cardio')"><span class="ni">&#127939;</span>Cardio</button>
     <button class="nav-btn nav-center" id="navWorkout" onclick="switchTab('workout')">
       <div class="nav-center-inner"><span class="ni">&#127947;</span><span class="label">Workout</span></div>
     </button>
@@ -578,6 +570,40 @@
   </div>
 </div>
 
+<!-- ── WORKOUT CARDIO SHEET ── -->
+<div class="overlay" id="workoutCardioOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="wcardioName"></div>
+    <div class="form-group">
+      <label class="form-label">Duration</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label class="form-label">Minutes</label><input class="form-input" type="number" id="wcardioMins" placeholder="30" min="0" /></div>
+        <div><label class="form-label">Seconds</label><input class="form-input" type="number" id="wcardioSecs" placeholder="0" min="0" max="59" /></div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Distance (optional)</label>
+      <div style="display:grid;grid-template-columns:1fr 70px;gap:10px">
+        <input class="form-input" type="number" id="wcardioDist" placeholder="0.0" min="0" step="0.1" />
+        <select class="form-input" id="wcardioDistUnit"><option value="mi">mi</option><option value="km">km</option><option value="m">m</option></select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Calories burned (optional)</label>
+      <input class="form-input" type="number" id="wcardioCals" placeholder="0" min="0" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notes (optional)</label>
+      <input class="form-input" id="wcardioNotes" placeholder="e.g. felt strong, incline 5%" maxlength="200" />
+    </div>
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <button class="btn-grey" style="flex:1" onclick="closeWorkoutCardioSheet()">Cancel</button>
+      <button class="btn-gold" style="flex:2" onclick="saveWorkoutCardio()">Add to Workout</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── FINISH WORKOUT OVERLAY ── -->
 <div class="overlay" id="finishOverlay">
   <div class="sheet">
@@ -759,6 +785,18 @@ const ALL_EXERCISES = EXERCISE_LIBRARY.flatMap(cat =>
   cat.exercises.map(e => ({...e, category: cat.category, icon: cat.icon}))
 );
 
+const CARDIO_EXERCISES = new Set([
+  'Cross Training','Cycling (Outdoor)','Elliptical','Functional Strength','Hiking','HIIT',
+  'Jump Rope','Miscellaneous','Rowing Machine','Running (Outdoor)','Stair Climber',
+  'Stationary Bike','Swimming','Treadmill','Walking','Battle Ropes','Sled Push',
+  'Bodyattack','Bodybalance','Bodycombat','Bodyjam','Bodypump','Bodystep',
+  'Born To Move','Boxing','Ceremony','Conquer','Core','Dance','Dancing',
+  'Grit','Pilates','RPM','Shapes','Sprint','Strength Development',
+  'The Trip','Thrive','Tone'
+]);
+
+function isCardioEx(name) { return CARDIO_EXERCISES.has(name); }
+
 const EQUIPMENT_COLORS = {
   'Barbell':    '#e67e22',
   'Dumbbell':   '#2980b9',
@@ -883,14 +921,13 @@ async function saveTemplates() {
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
 window.switchTab = function(tab) {
-  ['workout','history','cardio','pr','profile'].forEach(t => {
+  ['workout','history','pr','profile'].forEach(t => {
     document.getElementById('tab'+t[0].toUpperCase()+t.slice(1)).style.display = t===tab?'flex':'none';
     const navEl = document.getElementById('nav'+t[0].toUpperCase()+t.slice(1));
     if (navEl) navEl.classList.toggle('active', t===tab);
   });
   if (tab==='history') renderHistory();
   if (tab==='profile') renderProfile();
-  if (tab==='cardio')  renderCardioTab();
   if (tab==='pr')      renderPrTab();
 };
 
@@ -1022,14 +1059,35 @@ function renderActiveWorkout() {
 }
 
 function buildExBlock(ex, ei) {
+  // ── Cardio / class block ──────────────────────────────────────────────────
+  if (ex.isCardio) {
+    const durParts = [];
+    if (ex.mins) durParts.push(ex.mins+'m');
+    if (ex.secs) durParts.push(ex.secs+'s');
+    const dur = durParts.join(' ') || '—';
+    const dist = ex.dist ? ex.dist+' '+ex.dunit : '';
+    const cals = ex.cals ? ex.cals+' cal' : '';
+    const meta = [dur, dist, cals].filter(Boolean).join(' · ');
+    return '<div class="ex-block" id="exBlock'+ei+'">'
+      +'<div class="ex-block-header">'
+      +'<div><div class="ex-block-name">'+ex.name+'</div>'
+      +'<div class="ex-block-type" style="color:var(--gold);margin-top:4px">'+meta+'</div>'
+      +(ex.notes?'<div class="ex-block-type" style="font-style:italic;margin-top:2px">'+ex.notes+'</div>':'')
+      +'</div>'
+      +'<div class="ex-block-actions">'
+      +'<button class="btn-sm btn-sm-danger" onclick="removeExercise('+ei+')">&#215;</button>'
+      +'</div></div>'
+      +'</div>';
+  }
+
+  // ── Lifting block ─────────────────────────────────────────────────────────
   const prevSets = getPreviousSets(ex.name);
   let rows = ex.sets.map((s,si) => {
     const prev = prevSets && prevSets[si];
     const prevLabel = prev ? prev.weight+'lb &times;'+prev.reps : '—';
-    const wLabel = s.weight ? s.weight+'lb' : '—';
     return '<tr class="set-row'+(s.completed?' completed':'')+'"><td><span class="set-num">'+(si+1)+'</span></td>'
       +'<td><span class="set-prev">'+prevLabel+'</span></td>'
-      +'<td><input class="set-input" type="number" value="'+(s.weight||'')+'" placeholder="lb" onchange="updateSet('+ei+','+si+',\'weight\',this.value)" onclick="openWeightPicker('+ei+','+si+')" readonly /></td>'
+      +'<td><input class="set-input" type="number" value="'+(s.weight||'')+'" placeholder="lb" onclick="openWeightPicker('+ei+','+si+')" readonly /></td>'
       +'<td><input class="set-input" type="number" value="'+(s.reps||'')+'" placeholder="reps" onchange="updateSet('+ei+','+si+',\'reps\',this.value)" /></td>'
       +'<td><button class="set-check'+(s.completed?' done':'')+'" onclick="toggleSet('+ei+','+si+')">'+(s.completed?'✓':'')+'</button></td>'
       +'</tr>';
@@ -1241,12 +1299,20 @@ window.createCustomExercise = function() {
 
 window.selectExercise = function(name) {
   window.closeExercisePicker();
+
   if (exPickerMode === 'template') {
-    templateEditorExercises.push({ name, defaultSets: 4, defaultReps: 10 });
+    templateEditorExercises.push({ name, defaultSets: isCardioEx(name)?1:4, defaultReps: 10, isCardio: isCardioEx(name) });
     renderTemplateEditorExList();
     return;
   }
-  // workout mode
+
+  // Cardio/class — open duration sheet instead of adding weight rows
+  if (isCardioEx(name)) {
+    openWorkoutCardioSheet(name);
+    return;
+  }
+
+  // Lifting — normal set-by-set block
   const prev = getPreviousSets(name);
   const defaultSets = prev ? prev.length : 4;
   const newEx = {
@@ -1261,11 +1327,43 @@ window.selectExercise = function(name) {
   };
   activeWorkout.exercises.push(newEx);
   renderActiveWorkout();
-  // scroll to bottom
   setTimeout(() => {
     const body = document.getElementById('activeWorkoutBody');
     body.scrollTop = body.scrollHeight;
   }, 100);
+};
+
+// ── WORKOUT CARDIO SHEET (for cardio/class exercises inside a workout) ────────
+let workoutCardioName = '';
+window.openWorkoutCardioSheet = function(name) {
+  workoutCardioName = name;
+  document.getElementById('wcardioName').textContent = name;
+  ['wcardioMins','wcardioSecs','wcardioDist','wcardioCals','wcardioNotes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('wcardioDistUnit').value='mi';
+  document.getElementById('workoutCardioOverlay').style.display='flex';
+};
+window.closeWorkoutCardioSheet = function() {
+  document.getElementById('workoutCardioOverlay').style.display='none';
+};
+window.saveWorkoutCardio = function() {
+  const mins=parseInt(document.getElementById('wcardioMins').value)||0;
+  const secs=parseInt(document.getElementById('wcardioSecs').value)||0;
+  if(!mins&&!secs){alert('Please enter a duration.');return;}
+  const dist=parseFloat(document.getElementById('wcardioDist').value)||0;
+  const dunit=document.getElementById('wcardioDistUnit').value;
+  const cals=parseInt(document.getElementById('wcardioCals').value)||0;
+  const notes=document.getElementById('wcardioNotes').value.trim();
+  activeWorkout.exercises.push({
+    name: workoutCardioName,
+    isCardio: true,
+    mins, secs, dist, dunit, cals, notes
+  });
+  window.closeWorkoutCardioSheet();
+  renderActiveWorkout();
+  setTimeout(()=>{
+    const body=document.getElementById('activeWorkoutBody');
+    body.scrollTop=body.scrollHeight;
+  },100);
 };
 
 // ── FINISH WORKOUT ────────────────────────────────────────────────────────────
@@ -1539,6 +1637,7 @@ window.deleteTemplate = async function(idx) {
 document.getElementById('dayOverlay').addEventListener('click',e=>{if(e.target===document.getElementById('dayOverlay'))document.getElementById('dayOverlay').style.display='none';});
 document.getElementById('weightPickerOverlay').addEventListener('click',e=>{if(e.target===document.getElementById('weightPickerOverlay'))window.cancelWeightPicker();});
 document.getElementById('cardioOverlay').addEventListener('click',e=>{if(e.target===document.getElementById('cardioOverlay'))window.closeCardioSheet();});
+document.getElementById('workoutCardioOverlay').addEventListener('click',e=>{if(e.target===document.getElementById('workoutCardioOverlay'))window.closeWorkoutCardioSheet();});
 document.getElementById('finishOverlay').addEventListener('click',e=>{if(e.target===document.getElementById('finishOverlay'))document.getElementById('finishOverlay').style.display='none';});
 
 // unregister old service workers
