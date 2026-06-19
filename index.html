@@ -313,14 +313,12 @@
           <div class="workout-title" id="workoutActiveTitle">Workout</div>
         </div>
         <div style="display:flex;gap:8px">
+          <button class="btn-gold" style="padding:8px 16px;font-size:13px;width:auto;font-weight:700" onclick="openExercisePicker()">+ Add Exercise</button>
           <button class="btn-grey" style="padding:8px 14px;font-size:13px" onclick="discardWorkout()">Discard</button>
           <button class="btn-green" style="padding:8px 16px;font-size:13px;width:auto" onclick="finishWorkout()">Finish</button>
         </div>
       </div>
-      <div class="scroll-body" id="activeWorkoutBody" style="padding-bottom:100px"></div>
-      <div style="position:fixed;bottom:80px;left:0;right:0;padding:0 16px;z-index:50">
-        <button class="btn-grey" style="width:100%;font-size:15px;font-weight:600;padding:14px" onclick="openExercisePicker()">+ Add Exercise</button>
-      </div>
+      <div class="scroll-body" id="activeWorkoutBody" style="padding-bottom:32px"></div>
     </div>
 
   </div>
@@ -467,11 +465,47 @@
       <label class="form-label">Activity type</label>
       <select class="form-input" id="cardioType">
         <option value="" disabled selected>Select activity...</option>
-        <option>Boxing</option><option>Cycling (outdoor)</option><option>Elliptical</option>
-        <option>Hiking</option><option>HIIT</option><option>Jump Rope</option>
-        <option>Rowing Machine</option><option>Running (outdoor)</option>
-        <option>Stair Climber</option><option>Stationary Bike</option>
-        <option>Swimming</option><option>Treadmill</option><option>Walking</option>
+        <optgroup label="Cardio">
+        <option>Cross Training</option>
+        <option>Cycling (Outdoor)</option>
+        <option>Elliptical</option>
+        <option>Functional Strength</option>
+        <option>Hiking</option>
+        <option>HIIT</option>
+        <option>Jump Rope</option>
+        <option>Miscellaneous</option>
+        <option>Rowing Machine</option>
+        <option>Running (Outdoor)</option>
+        <option>Stair Climber</option>
+        <option>Stationary Bike</option>
+        <option>Swimming</option>
+        <option>Treadmill</option>
+        <option>Walking</option>
+        </optgroup>
+        <optgroup label="Classes">
+        <option>Bodyattack</option>
+        <option>Bodybalance</option>
+        <option>Bodycombat</option>
+        <option>Bodyjam</option>
+        <option>Bodypump</option>
+        <option>Bodystep</option>
+        <option>Born To Move</option>
+        <option>Boxing</option>
+        <option>Ceremony</option>
+        <option>Conquer</option>
+        <option>Core</option>
+        <option>Dance</option>
+        <option>Dancing</option>
+        <option>Grit</option>
+        <option>Pilates</option>
+        <option>RPM</option>
+        <option>Shapes</option>
+        <option>Sprint</option>
+        <option>Strength Development</option>
+        <option>The Trip</option>
+        <option>Thrive</option>
+        <option>Tone</option>
+        </optgroup>
       </select>
     </div>
     <div class="form-group">
@@ -597,40 +631,155 @@ let templateEditorExercises = [];  // [{name, defaultSets, defaultReps}]
 let exPickerMode = 'workout'; // 'workout' or 'template'
 
 // ── EXERCISE LIBRARY ──────────────────────────────────────────────────────────
+// Each exercise: { name, equipment }
+// equipment: 'Barbell' | 'Dumbbell' | 'Machine' | 'Cable' | 'Bodyweight' | 'Other'
 const EXERCISE_LIBRARY = [
   { category: 'Chest', icon: '🫁', exercises: [
-    'Barbell Bench Press','Incline Barbell Bench Press','Decline Barbell Bench Press',
-    'Dumbbell Bench Press','Incline Dumbbell Press','Dumbbell Fly','Cable Fly',
-    'Chest Press Machine','Pec Deck Machine','Push-Up'
+    {name:'Barbell Bench Press',       equipment:'Barbell'},
+    {name:'Incline Barbell Bench Press',equipment:'Barbell'},
+    {name:'Decline Barbell Bench Press',equipment:'Barbell'},
+    {name:'Dumbbell Bench Press',      equipment:'Dumbbell'},
+    {name:'Incline Dumbbell Press',    equipment:'Dumbbell'},
+    {name:'Dumbbell Fly',              equipment:'Dumbbell'},
+    {name:'Cable Fly',                 equipment:'Cable'},
+    {name:'Chest Press Machine',       equipment:'Machine'},
+    {name:'Pec Deck Machine',          equipment:'Machine'},
+    {name:'Push-Up',                   equipment:'Bodyweight'},
   ]},
-  { category: 'Back', icon: '🔙', exercises: [
-    'Deadlift','Barbell Row','Dumbbell Row','Pull-Up','Chin-Up',
-    'Lat Pulldown Machine','Cable Row (Seated)','T-Bar Row Machine','Face Pull','Shrug'
+  { category: 'Back', icon: '🏋️', exercises: [
+    {name:'Deadlift',                  equipment:'Barbell'},
+    {name:'Barbell Row',               equipment:'Barbell'},
+    {name:'Dumbbell Row',              equipment:'Dumbbell'},
+    {name:'Pull-Up',                   equipment:'Bodyweight'},
+    {name:'Chin-Up',                   equipment:'Bodyweight'},
+    {name:'Lat Pulldown Machine',      equipment:'Machine'},
+    {name:'Cable Row (Seated)',        equipment:'Cable'},
+    {name:'T-Bar Row Machine',         equipment:'Machine'},
+    {name:'Face Pull',                 equipment:'Cable'},
+    {name:'Shrug',                     equipment:'Barbell'},
   ]},
-  { category: 'Shoulders', icon: '💪', exercises: [
-    'Overhead Press (Barbell)','Dumbbell Shoulder Press','Lateral Raise','Front Raise',
-    'Rear Delt Fly Machine','Arnold Press','Upright Row','Cable Lateral Raise'
+  { category: 'Shoulders', icon: '🔝', exercises: [
+    {name:'Overhead Press (Barbell)',  equipment:'Barbell'},
+    {name:'Dumbbell Shoulder Press',   equipment:'Dumbbell'},
+    {name:'Lateral Raise',             equipment:'Dumbbell'},
+    {name:'Front Raise',               equipment:'Dumbbell'},
+    {name:'Rear Delt Fly Machine',     equipment:'Machine'},
+    {name:'Arnold Press',              equipment:'Dumbbell'},
+    {name:'Upright Row',               equipment:'Barbell'},
+    {name:'Cable Lateral Raise',       equipment:'Cable'},
   ]},
   { category: 'Arms', icon: '💪', exercises: [
-    'Barbell Curl','Dumbbell Curl','Hammer Curl','Preacher Curl Machine',
-    'Cable Bicep Curl','Skull Crusher','Tricep Dip Machine',
-    'Cable Tricep Pushdown','Close-Grip Bench Press','Overhead Tricep Extension'
+    {name:'Barbell Curl',              equipment:'Barbell'},
+    {name:'Dumbbell Curl',             equipment:'Dumbbell'},
+    {name:'Hammer Curl',               equipment:'Dumbbell'},
+    {name:'Preacher Curl Machine',     equipment:'Machine'},
+    {name:'Cable Bicep Curl',          equipment:'Cable'},
+    {name:'Skull Crusher',             equipment:'Barbell'},
+    {name:'Tricep Dip Machine',        equipment:'Machine'},
+    {name:'Cable Tricep Pushdown',     equipment:'Cable'},
+    {name:'Close-Grip Bench Press',    equipment:'Barbell'},
+    {name:'Overhead Tricep Extension', equipment:'Dumbbell'},
   ]},
   { category: 'Legs', icon: '🦵', exercises: [
-    'Barbell Squat','Front Squat','Leg Press Machine','Hack Squat Machine',
-    'Romanian Deadlift','Leg Extension Machine','Hamstring Curl Machine',
-    'Dumbbell Lunge','Hip Thruster Machine','Calf Raise','Standing Calf Raise Machine','Seated Calf Raise Machine'
+    {name:'Barbell Squat',             equipment:'Barbell'},
+    {name:'Front Squat',               equipment:'Barbell'},
+    {name:'Leg Press Machine',         equipment:'Machine'},
+    {name:'Hack Squat Machine',        equipment:'Machine'},
+    {name:'Romanian Deadlift',         equipment:'Barbell'},
+    {name:'Leg Extension Machine',     equipment:'Machine'},
+    {name:'Hamstring Curl Machine',    equipment:'Machine'},
+    {name:'Dumbbell Lunge',            equipment:'Dumbbell'},
+    {name:'Hip Thruster Machine',      equipment:'Machine'},
+    {name:'Calf Raise',                equipment:'Barbell'},
+    {name:'Standing Calf Raise Machine',equipment:'Machine'},
+    {name:'Seated Calf Raise Machine', equipment:'Machine'},
   ]},
   { category: 'Glutes', icon: '🍑', exercises: [
-    'Hip Thrust','Glute Bridge','Cable Kickback','Hip Abductor Machine','Hip Adductor Machine','Sumo Deadlift'
+    {name:'Hip Thrust',                equipment:'Barbell'},
+    {name:'Glute Bridge',              equipment:'Bodyweight'},
+    {name:'Cable Kickback',            equipment:'Cable'},
+    {name:'Hip Abductor Machine',      equipment:'Machine'},
+    {name:'Hip Adductor Machine',      equipment:'Machine'},
+    {name:'Sumo Deadlift',             equipment:'Barbell'},
   ]},
   { category: 'Core', icon: '🔥', exercises: [
-    'Plank','Crunch','Cable Crunch','Hanging Leg Raise','Ab Wheel Rollout','Russian Twist','Decline Crunch'
+    {name:'Plank',                     equipment:'Bodyweight'},
+    {name:'Crunch',                    equipment:'Bodyweight'},
+    {name:'Cable Crunch',              equipment:'Cable'},
+    {name:'Hanging Leg Raise',         equipment:'Bodyweight'},
+    {name:'Ab Wheel Rollout',          equipment:'Other'},
+    {name:'Russian Twist',             equipment:'Bodyweight'},
+    {name:'Decline Crunch',            equipment:'Bodyweight'},
   ]},
-  { category: 'Cardio / Conditioning', icon: '🏃', exercises: [
-    'Treadmill Run','Stationary Bike','Rowing Machine','Elliptical','Jump Rope','Battle Ropes','Sled Push'
+  { category: 'Cardio', icon: '🏃', exercises: [
+    {name:'Cross Training',            equipment:'Other'},
+    {name:'Cycling (Outdoor)',         equipment:'Other'},
+    {name:'Elliptical',                equipment:'Machine'},
+    {name:'Functional Strength',       equipment:'Other'},
+    {name:'Hiking',                    equipment:'Other'},
+    {name:'HIIT',                      equipment:'Other'},
+    {name:'Jump Rope',                 equipment:'Other'},
+    {name:'Miscellaneous',             equipment:'Other'},
+    {name:'Rowing Machine',            equipment:'Machine'},
+    {name:'Running (Outdoor)',         equipment:'Other'},
+    {name:'Stair Climber',             equipment:'Machine'},
+    {name:'Stationary Bike',           equipment:'Machine'},
+    {name:'Swimming',                  equipment:'Other'},
+    {name:'Treadmill',                 equipment:'Machine'},
+    {name:'Walking',                   equipment:'Other'},
+  ]},
+  { category: 'Classes', icon: '🎽', exercises: [
+    {name:'Bodyattack',                equipment:'Other'},
+    {name:'Bodybalance',               equipment:'Other'},
+    {name:'Bodycombat',                equipment:'Other'},
+    {name:'Bodyjam',                   equipment:'Other'},
+    {name:'Bodypump',                  equipment:'Other'},
+    {name:'Bodystep',                  equipment:'Other'},
+    {name:'Born To Move',              equipment:'Other'},
+    {name:'Boxing',                    equipment:'Other'},
+    {name:'Ceremony',                  equipment:'Other'},
+    {name:'Conquer',                   equipment:'Other'},
+    {name:'Core',                      equipment:'Other'},
+    {name:'Dance',                     equipment:'Other'},
+    {name:'Dancing',                   equipment:'Other'},
+    {name:'Grit',                      equipment:'Other'},
+    {name:'Pilates',                   equipment:'Other'},
+    {name:'RPM',                       equipment:'Machine'},
+    {name:'Shapes',                    equipment:'Other'},
+    {name:'Sprint',                    equipment:'Other'},
+    {name:'Strength Development',      equipment:'Other'},
+    {name:'The Trip',                  equipment:'Machine'},
+    {name:'Thrive',                    equipment:'Other'},
+    {name:'Tone',                      equipment:'Other'},
   ]}
 ];
+
+// flat map for search
+const ALL_EXERCISES = EXERCISE_LIBRARY.flatMap(cat =>
+  cat.exercises.map(e => ({...e, category: cat.category, icon: cat.icon}))
+);
+
+const EQUIPMENT_COLORS = {
+  'Barbell':    '#e67e22',
+  'Dumbbell':   '#2980b9',
+  'Machine':    '#8e44ad',
+  'Cable':      '#16a085',
+  'Bodyweight': '#27ae60',
+  'Other':      '#555',
+};
+
+function getRecentExercises() {
+  const days = Object.keys(workouts).sort((a,b)=>b.localeCompare(a)).slice(0,10);
+  const seen = new Set();
+  const recent = [];
+  for (const day of days) {
+    for (const ex of (workouts[day].exercises||[])) {
+      if (!seen.has(ex.name)) { seen.add(ex.name); recent.push(ex.name); }
+      if (recent.length >= 8) return recent;
+    }
+  }
+  return recent;
+}
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 onAuthStateChanged(auth, async (user) => {
@@ -1031,24 +1180,64 @@ window.filterExercises = function() {
   renderExList(document.getElementById('exSearch').value.trim().toLowerCase());
 };
 
+function exRow(ex) {
+  const color = EQUIPMENT_COLORS[ex.equipment] || '#555';
+  const safe = ex.name.replace(/'/g, "\\'");
+  return '<div class="ex-pick-row" onclick="selectExercise(\'' + safe + '\')">'
+    + '<div class="ex-pick-icon" style="background:' + color + '22;font-size:20px">' + ex.icon + '</div>'
+    + '<div style="flex:1">'
+    + '<div class="ex-pick-name">' + ex.name + '</div>'
+    + '<div style="display:flex;align-items:center;gap:6px;margin-top:3px">'
+    + '<span style="font-size:11px;font-weight:600;color:' + color + ';background:' + color + '18;border-radius:20px;padding:2px 8px">' + ex.equipment + '</span>'
+    + '<span style="font-size:11px;color:var(--muted)">' + ex.category + '</span>'
+    + '</div></div>'
+    + '</div>';
+}
+
 function renderExList(query) {
   const el = document.getElementById('exPickerList');
   let html = '';
-  EXERCISE_LIBRARY.forEach(cat => {
-    const matches = cat.exercises.filter(e => !query || e.toLowerCase().includes(query));
-    if (!matches.length) return;
-    if (!query) html += '<div class="ex-category-header">'+cat.icon+' '+cat.category+'</div>';
-    matches.forEach(name => {
-      html += '<div class="ex-pick-row" onclick="selectExercise(\''+name.replace(/'/g,"\\'")+'\')">'
-        +'<div class="ex-pick-icon">'+cat.icon+'</div>'
-        +'<div><div class="ex-pick-name">'+name+'</div>'
-        +'<div class="ex-pick-sub">'+cat.category+'</div></div>'
-        +'</div>';
+
+  if (!query) {
+    const recent = getRecentExercises();
+    if (recent.length) {
+      html += '<div class="ex-category-header">⏱ Recently Used</div>';
+      recent.forEach(function(name) {
+        const ex = ALL_EXERCISES.find(function(e){return e.name===name;});
+        if (ex) html += exRow(ex);
+      });
+    }
+    const sortedLib = EXERCISE_LIBRARY.slice().sort(function(a,b){return a.category.localeCompare(b.category);});
+    sortedLib.forEach(function(cat) {
+      html += '<div class="ex-category-header">' + cat.icon + ' ' + cat.category + '</div>';
+      cat.exercises.forEach(function(ex) {
+        html += exRow(Object.assign({}, ex, {category:cat.category, icon:cat.icon}));
+      });
     });
-  });
-  if (!html) html = '<div class="empty-state" style="padding:40px 0"><div class="empty-icon">🔍</div>No exercises found.</div>';
+  } else {
+    const matches = ALL_EXERCISES.filter(function(e){ return e.name.toLowerCase().includes(query); });
+    if (!matches.length) {
+      html = '<div class="empty-state" style="padding:40px 0"><div class="empty-icon">🔍</div>No exercises found.</div>';
+    } else {
+      matches.forEach(function(ex){ html += exRow(ex); });
+    }
+  }
+
+  html += '<div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px">'
+    + '<div class="ex-pick-row" onclick="createCustomExercise()">'
+    + '<div class="ex-pick-icon" style="background:rgba(255,182,18,0.1);font-size:20px">✏️</div>'
+    + '<div><div class="ex-pick-name" style="color:var(--gold)">Create Custom Exercise</div>'
+    + '<div style="font-size:11px;color:var(--muted);margin-top:2px">Add your own exercise</div></div>'
+    + '</div></div>';
+
   el.innerHTML = html;
 }
+
+window.createCustomExercise = function() {
+  const name = prompt('Exercise name:', '');
+  if (!name || !name.trim()) return;
+  selectExercise(name.trim());
+};
 
 window.selectExercise = function(name) {
   window.closeExercisePicker();
