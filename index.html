@@ -163,10 +163,7 @@
     .add-set-btn:active { background: rgba(255,182,18,0.05); }
 
     /* REST TIMER */
-    .rest-bar { position: fixed; top: 0; left: 0; right: 0; z-index: 300; background: var(--gold); color: #000; display: none; align-items: center; justify-content: space-between; padding: 10px 16px; box-shadow: 0 2px 12px rgba(255,182,18,0.5); }
-    .rest-bar.active { display: flex; }
-    .rest-bar-time { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
-    .rest-bar-btn { background: rgba(0,0,0,0.15); border: none; border-radius: 8px; color: #000; font-size: 12px; font-weight: 600; padding: 6px 12px; cursor: pointer; touch-action: manipulation; }
+
 
     /* EXERCISE PICKER */
     .ex-search { background: var(--card2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 15px; padding: 12px 16px; width: 100%; outline: none; margin-bottom: 12px; }
@@ -216,19 +213,6 @@
   </style>
 </head>
 <body>
-
-<!-- REST TIMER BAR -->
-<div class="rest-bar" id="restBar">
-  <div>
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Rest Timer</div>
-    <div class="rest-bar-time" id="restBarDisplay">1:30</div>
-  </div>
-  <div style="display:flex;gap:8px">
-    <button class="rest-bar-btn" onclick="adjustRest(-15)">-15s</button>
-    <button class="rest-bar-btn" onclick="adjustRest(15)">+15s</button>
-    <button class="rest-bar-btn" onclick="stopRest()">Done</button>
-  </div>
-</div>
 
 <!-- LOADING -->
 <div class="loading-overlay" id="loadingOverlay">
@@ -309,13 +293,12 @@
     <div id="workoutActive" style="display:none;flex-direction:column;flex:1;overflow:hidden">
       <div class="workout-topbar">
         <div>
-          <div class="workout-timer" id="workoutTimerDisplay">0:00</div>
-          <div class="workout-title" id="workoutActiveTitle">Workout</div>
+          <div class="workout-title" id="workoutActiveTitle" style="font-size:17px;font-weight:700;color:var(--gold)">Workout</div>
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn-gold" style="padding:8px 16px;font-size:13px;width:auto;font-weight:700" onclick="openExercisePicker()">+ Add Exercise</button>
           <button class="btn-grey" style="padding:8px 14px;font-size:13px" onclick="discardWorkout()">Discard</button>
-          <button class="btn-green" style="padding:8px 16px;font-size:13px;width:auto" onclick="finishWorkout()">Finish</button>
+          <button class="btn-green" style="padding:8px 16px;font-size:13px;width:auto" onclick="finishWorkout()">Save</button>
         </div>
       </div>
       <div class="scroll-body" id="activeWorkoutBody" style="padding-bottom:32px"></div>
@@ -642,8 +625,7 @@ let templates = [];
 let activeWorkout = null;   // current in-progress workout object
 let workoutTimerInterval = null;
 let workoutStartTime = null;
-let restInterval = null;
-let restRemaining = 0;
+
 let authMode = 'login';
 
 // weight picker state
@@ -954,32 +936,11 @@ function startWorkoutTimer() {
 function stopWorkoutTimer() {
   clearInterval(workoutTimerInterval);
   workoutTimerInterval = null;
-  return Math.floor((Date.now() - workoutStartTime) / 1000);
+  return workoutStartTime ? Math.floor((Date.now() - workoutStartTime) / 1000) : 0;
 }
 
 // ── REST TIMER ────────────────────────────────────────────────────────────────
-function startRest(secs) {
-  restRemaining = secs;
-  clearInterval(restInterval);
-  document.getElementById('restBar').classList.add('active');
-  updateRestDisplay();
-  restInterval = setInterval(() => {
-    restRemaining--;
-    if (restRemaining <= 0) { stopRest(); return; }
-    updateRestDisplay();
-  }, 1000);
-}
-function updateRestDisplay() {
-  document.getElementById('restBarDisplay').textContent = fmtDuration(restRemaining);
-}
-window.stopRest = function() {
-  clearInterval(restInterval);
-  document.getElementById('restBar').classList.remove('active');
-};
-window.adjustRest = function(delta) {
-  restRemaining = Math.max(5, restRemaining + delta);
-  updateRestDisplay();
-};
+function startRest(){} window.stopRest=function(){}; window.adjustRest=function(){};
 
 // ── START SCREEN ──────────────────────────────────────────────────────────────
 function renderStartScreen() {
@@ -990,10 +951,16 @@ function renderStartScreen() {
   }
   list.innerHTML = templates.map((t,i) => {
     const exNames = t.exercises.map(e=>e.name);
+    const liftCount = t.exercises.filter(e=>!e.isCardio&&!isCardioEx(e.name)).length;
+    const cardioCount = t.exercises.filter(e=>e.isCardio||isCardioEx(e.name)).length;
+    const meta = [
+      liftCount ? liftCount+' exercise'+(liftCount!==1?'s':'') : '',
+      cardioCount ? cardioCount+' cardio' : ''
+    ].filter(Boolean).join(' · ');
     return '<div class="tmpl-card" onclick="startFromTemplate('+i+')">'
       + '<div class="tmpl-card-name">'+t.name+'</div>'
-      + '<div class="tmpl-card-meta">'+t.exercises.length+' exercise'+(t.exercises.length!==1?'s':'')+'</div>'
-      + '<div class="tmpl-card-exercises">'+exNames.slice(0,5).map(n=>'<span class="tmpl-ex-pill">'+n+'</span>').join('')+(exNames.length>5?'<span class="tmpl-ex-pill">+' +(exNames.length-5)+' more</span>':'')+'</div>'
+      + '<div class="tmpl-card-meta">'+meta+'</div>'
+      + '<div class="tmpl-card-exercises">'+exNames.slice(0,5).map(n=>'<span class="tmpl-ex-pill">'+n+'</span>').join('')+(exNames.length>5?'<span class="tmpl-ex-pill">+'+(exNames.length-5)+' more</span>':'')+'</div>'
       + '</div>';
   }).join('');
 }
@@ -1013,17 +980,26 @@ window.startFromTemplate = function(idx) {
   const tmpl = templates[idx];
   activeWorkout = {
     name: tmpl.name,
-    exercises: tmpl.exercises.map(e => ({
-      name: e.name,
-      sets: Array.from({length: e.defaultSets||4}, () => ({ weight: 0, reps: e.defaultReps||10, completed: false, wType:'barbell', machineName:'' }))
-    })),
-    startedAt: Date.now()
+    startedAt: Date.now(),
+    exercises: tmpl.exercises.map(e => {
+      // Cardio/class exercise — keep as duration entry
+      if (e.isCardio || isCardioEx(e.name)) {
+        return { name: e.name, isCardio: true, mins: 0, secs: 0, dist: 0, dunit: 'mi', cals: 0, notes: '' };
+      }
+      // Lifting — always 4 sets, prefill from previous if available
+      const prev = getPreviousSets(e.name);
+      return {
+        name: e.name,
+        sets: Array.from({length: 4}, (_, i) => ({
+          weight: prev && prev[i] ? prev[i].weight : 0,
+          reps:   prev && prev[i] ? prev[i].reps   : e.defaultReps || 10,
+          completed: false,
+          wType: prev && prev[i] ? prev[i].wType || 'barbell' : 'barbell',
+          machineName: prev && prev[i] ? prev[i].machineName || '' : ''
+        }))
+      };
+    })
   };
-  // prefill previous weights
-  activeWorkout.exercises.forEach(ex => {
-    const prev = getPreviousSets(ex.name);
-    if (prev) ex.sets.forEach((s,i) => { if(prev[i]) { s.weight=prev[i].weight; s.reps=prev[i].reps; s.wType=prev[i].wType||'barbell'; s.machineName=prev[i].machineName||''; } });
-  });
   document.getElementById('workoutActiveTitle').textContent = activeWorkout.name;
   showActiveWorkout();
   startWorkoutTimer();
@@ -1089,7 +1065,6 @@ function buildExBlock(ex, ei) {
       +'<td><span class="set-prev">'+prevLabel+'</span></td>'
       +'<td><input class="set-input" type="number" value="'+(s.weight||'')+'" placeholder="lb" onclick="openWeightPicker('+ei+','+si+')" readonly /></td>'
       +'<td><input class="set-input" type="number" value="'+(s.reps||'')+'" placeholder="reps" onchange="updateSet('+ei+','+si+',\'reps\',this.value)" /></td>'
-      +'<td><button class="set-check'+(s.completed?' done':'')+'" onclick="toggleSet('+ei+','+si+')">'+(s.completed?'✓':'')+'</button></td>'
       +'</tr>';
   }).join('');
 
@@ -1100,7 +1075,7 @@ function buildExBlock(ex, ei) {
     +'<button class="btn-sm btn-sm-danger" onclick="removeExercise('+ei+')">&#215;</button>'
     +'</div></div>'
     +'<table class="set-table">'
-    +'<thead><tr><th>SET</th><th>PREVIOUS</th><th>WEIGHT</th><th>REPS</th><th>✓</th></tr></thead>'
+    +'<thead><tr><th>SET</th><th>PREVIOUS</th><th>WEIGHT</th><th>REPS</th></tr></thead>'
     +'<tbody>'+rows+'</tbody>'
     +'</table>'
     +'<button class="add-set-btn" onclick="addSet('+ei+')">+ Add Set</button>'
@@ -1301,8 +1276,9 @@ window.selectExercise = function(name) {
   window.closeExercisePicker();
 
   if (exPickerMode === 'template') {
-    templateEditorExercises.push({ name, defaultSets: isCardioEx(name)?1:4, defaultReps: 10, isCardio: isCardioEx(name) });
+    templateEditorExercises.push({ name, defaultSets: 4, defaultReps: 10, isCardio: isCardioEx(name) });
     renderTemplateEditorExList();
+    document.getElementById('templateEditorSheet').classList.add('open');
     return;
   }
 
@@ -1368,21 +1344,21 @@ window.saveWorkoutCardio = function() {
 
 // ── FINISH WORKOUT ────────────────────────────────────────────────────────────
 window.finishWorkout = function() {
-  const completed = activeWorkout.exercises.reduce((a,ex)=>a+ex.sets.filter(s=>s.completed).length,0);
-  const total = activeWorkout.exercises.reduce((a,ex)=>a+ex.sets.length,0);
+  const liftingExs = activeWorkout.exercises.filter(ex => !ex.isCardio);
+  const completed = liftingExs.reduce((a,ex)=>a+(ex.sets||[]).filter(s=>s.completed).length, 0);
+  const total     = liftingExs.reduce((a,ex)=>a+(ex.sets||[]).length, 0);
+  const cardioExs = activeWorkout.exercises.filter(ex => ex.isCardio);
   const elapsed = stopWorkoutTimer();
   let summaryHTML = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">'
-    +'<div class="stat-box"><div class="stat-box-val">'+fmtDuration(elapsed)+'</div><div class="stat-box-label">Duration</div></div>'
     +'<div class="stat-box"><div class="stat-box-val">'+activeWorkout.exercises.length+'</div><div class="stat-box-label">Exercises</div></div>'
-    +'<div class="stat-box"><div class="stat-box-val">'+completed+'/'+total+'</div><div class="stat-box-label">Sets Done</div></div>'
+    +(liftingExs.length?'<div class="stat-box"><div class="stat-box-val">'+completed+'/'+total+'</div><div class="stat-box-label">Sets Done</div></div>':'')
+    +(cardioExs.length?'<div class="stat-box"><div class="stat-box-val">'+cardioExs.length+'</div><div class="stat-box-label">Cardio</div></div>':'')
     +'</div>';
-  // Volume
   let totalVol = 0;
-  activeWorkout.exercises.forEach(ex => ex.sets.forEach(s => { if(s.completed) totalVol += (s.wType==='dumbbell'?s.weight*2:s.weight)*(s.reps||0); }));
+  liftingExs.forEach(ex => (ex.sets||[]).forEach(s => { if(s.completed) totalVol += (s.wType==='dumbbell'?s.weight*2:s.weight)*(s.reps||0); }));
   if (totalVol) summaryHTML += '<div style="text-align:center;font-size:15px;color:var(--muted);margin-bottom:8px">Total volume: <strong style="color:var(--gold)">'+Math.round(totalVol).toLocaleString()+' lb</strong></div>';
   document.getElementById('finishSummary').innerHTML = summaryHTML;
   document.getElementById('finishOverlay').style.display = 'flex';
-  // store elapsed for save
   activeWorkout._elapsed = elapsed;
 };
 
@@ -1399,7 +1375,6 @@ window.confirmFinishWorkout = async function() {
   workouts[key] = data;
   await saveWorkout(key, data);
   activeWorkout = null;
-  stopRest();
   showStartScreen();
   renderStartScreen();
   renderHistory();
@@ -1422,14 +1397,15 @@ function renderHistory() {
     const w = workouts[key];
     const exs = w.exercises||[];
     const totalSets = exs.reduce((a,e)=>a+e.sets.length,0);
-    const completedSets = exs.reduce((a,e)=>a+e.sets.filter(s=>s.completed).length,0);
-    const vol = exs.reduce((a,e)=>a+e.sets.filter(s=>s.completed).reduce((b,s)=>b+(s.wType==='dumbbell'?s.weight*2:s.weight)*(s.reps||0),0),0);
+    const completedSets = exs.filter(e=>!e.isCardio).reduce((a,e)=>a+(e.sets||[]).filter(s=>s.completed).length,0);
+    const totalSets2 = exs.filter(e=>!e.isCardio).reduce((a,e)=>a+(e.sets||[]).length,0);
+    const vol = exs.filter(e=>!e.isCardio).reduce((a,e)=>a+(e.sets||[]).filter(s=>s.completed).reduce((b,s)=>b+(s.wType==='dumbbell'?s.weight*2:s.weight)*(s.reps||0),0),0);
     const dur = w.duration ? fmtDuration(w.duration) : '';
     const label = key===todayKey()?'Today &mdash; '+fmtShort(key):fmtShort(key);
     return '<div class="card day-card" onclick="openDayDetail(\''+key+'\')">'
       +'<div><div class="card-title">'+(w.name||label)+'</div>'
       +'<div class="card-meta">'+fmtShort(key)+(dur?' &middot; '+dur:'')+'</div>'
-      +'<div class="card-meta">'+exs.length+' exercise'+(exs.length!==1?'s':'')+' &middot; '+completedSets+'/'+totalSets+' sets'+(vol?' &middot; '+Math.round(vol).toLocaleString()+' lb':'')+'</div></div>'
+      +'<div class="card-meta">'+exs.length+' exercise'+(exs.length!==1?'s':'')+' &middot; '+completedSets+'/'+totalSets2+' sets'+(vol?' &middot; '+Math.round(vol).toLocaleString()+' lb':'')+'</div></div>'
       +'<span class="day-badge">'+exs.length+'</span></div>';
   }).join('');
 }
@@ -1438,19 +1414,53 @@ window.openDayDetail = function(key) {
   const w = workouts[key];
   const exs = w.exercises||[];
   document.getElementById('dayOverlayTitle').textContent = w.name||fmtShort(key);
-  let html = '<div style="font-size:12px;color:var(--muted);margin-bottom:16px">'+fmtShort(key)+(w.duration?' &middot; '+fmtDuration(w.duration):'')+'</div>';
+  let html = '<div style="font-size:12px;color:var(--muted);margin-bottom:12px">'+fmtShort(key)+(w.duration?' &middot; '+fmtDuration(w.duration):'')+'</div>';
   exs.forEach(ex => {
     html += '<div class="hist-ex-block"><div class="hist-ex-name">'+ex.name+'</div>';
-    ex.sets.forEach((s,si) => {
-      const wLabel = s.wType==='dumbbell'?s.weight+' lb each':s.weight?s.weight+' lb':'BW';
-      html += '<div class="hist-set-row'+(s.completed?'':' style="opacity:0.4"')+'">'
-        +'<span class="hist-set-label">Set '+(si+1)+'</span>'
-        +'<span>'+wLabel+' &times; '+s.reps+' reps'+(s.completed?' ✓':'')+'</span></div>';
-    });
+    if (ex.isCardio) {
+      const durParts=[];
+      if(ex.mins)durParts.push(ex.mins+'m');
+      if(ex.secs)durParts.push(ex.secs+'s');
+      const meta=[durParts.join(' '),ex.dist?ex.dist+' '+ex.dunit:'',ex.cals?ex.cals+' cal':''].filter(Boolean).join(' · ');
+      html += '<div class="hist-set-row"><span class="hist-set-label">Cardio</span><span>'+meta+'</span></div>';
+    } else {
+      (ex.sets||[]).forEach((s,si) => {
+        const wLabel = s.wType==='dumbbell'?s.weight+' lb each':s.weight?s.weight+' lb':'BW';
+        html += '<div class="hist-set-row"><span class="hist-set-label">Set '+(si+1)+'</span>'
+          +'<span>'+wLabel+' &times; '+s.reps+' reps</span></div>';
+      });
+    }
     html += '</div>';
   });
+  html += '<div style="margin-top:20px;display:flex;gap:10px">'
+    +'<button class="btn-gold" style="flex:1" onclick="saveWorkoutAsTemplate(this.dataset.key)" data-key="'+key+'">Save as Template</button>'
+    +'<button class="btn-danger" style="flex:1;padding:13px" onclick="deleteWorkoutFromHistory(this.dataset.key)" data-key="'+key+'">Delete</button>'
+    +'</div>';
   document.getElementById('dayOverlayBody').innerHTML = html;
   document.getElementById('dayOverlay').style.display = 'flex';
+};
+
+window.saveWorkoutAsTemplate = async function(key) {
+  const w = workouts[key];
+  const name = prompt('Template name:', w.name||'My Workout');
+  if (!name || !name.trim()) return;
+  const exercises = (w.exercises||[]).map(ex => {
+    if (ex.isCardio) return { name: ex.name, isCardio: true };
+    return { name: ex.name, defaultSets: (ex.sets||[]).length||4, defaultReps: (ex.sets&&ex.sets[0]?ex.sets[0].reps:10)||10 };
+  });
+  templates.unshift({ name: name.trim(), exercises, ts: Date.now() });
+  await saveTemplates();
+  renderStartScreen();
+  document.getElementById('dayOverlay').style.display = 'none';
+  alert('Template saved!');
+};
+
+window.deleteWorkoutFromHistory = async function(key) {
+  if (!confirm('Delete this workout?')) return;
+  delete workouts[key];
+  await deleteWorkout(key);
+  document.getElementById('dayOverlay').style.display = 'none';
+  renderHistory();
 };
 
 // ── CARDIO ────────────────────────────────────────────────────────────────────
@@ -1601,12 +1611,21 @@ window.closeTemplateEditor = function() {
 
 function renderTemplateEditorExList() {
   const el=document.getElementById('templateEditorExList');
-  if(!templateEditorExercises.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;margin-bottom:8px">No exercises yet.</div>';return;}
-  el.innerHTML=templateEditorExercises.map((e,i)=>'<div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">'
-    +'<div><div style="font-size:14px;font-weight:600;color:var(--gold)">'+e.name+'</div>'
-    +'<div style="font-size:12px;color:var(--muted);margin-top:3px">'+e.defaultSets+' sets &times; '+e.defaultReps+' reps</div></div>'
-    +'<button class="btn-sm btn-sm-danger" onclick="removeTemplateEx('+i+')">&#215;</button>'
-    +'</div>').join('');
+  if(!templateEditorExercises.length){
+    el.innerHTML='<div style="color:var(--muted);font-size:13px;margin-bottom:8px">No exercises yet.</div>';
+    return;
+  }
+  el.innerHTML=templateEditorExercises.map((e,i)=>{
+    const cardio = e.isCardio || isCardioEx(e.name);
+    const sub = cardio
+      ? '<span style="font-size:11px;background:rgba(255,182,18,0.12);color:var(--gold);border-radius:20px;padding:2px 8px">Cardio / Class</span>'
+      : '<span style="font-size:12px;color:var(--muted)">4 sets &times; '+(e.defaultReps||10)+' reps</span>';
+    return '<div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">'
+      +'<div><div style="font-size:14px;font-weight:600;color:var(--gold)">'+e.name+'</div>'
+      +'<div style="margin-top:4px">'+sub+'</div></div>'
+      +'<button class="btn-sm btn-sm-danger" onclick="removeTemplateEx('+i+')">&#215;</button>'
+      +'</div>';
+  }).join('');
 }
 
 window.removeTemplateEx = function(i) {
