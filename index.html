@@ -176,7 +176,7 @@
     .ex-filter-chip { background:var(--card2);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:13px;color:var(--muted);cursor:pointer;white-space:nowrap;touch-action:manipulation;flex-shrink:0; }
     .ex-filter-chip.active { background:var(--gold);color:#000;border-color:var(--gold);font-weight:600; }
     .ex-filter-chip:active { opacity:0.7; }
-    .ex-letter-header { padding:8px 16px 4px;font-size:15px;font-weight:700;color:var(--text);background:var(--dark); }
+    .ex-letter-header { padding:10px 16px 6px;font-size:14px;font-weight:700;color:#000;background:var(--gold); }
     .ex-picker-row { display:flex;align-items:center;padding:13px 16px;border-bottom:1px solid rgba(255,182,18,0.07);cursor:pointer;touch-action:manipulation; }
     .ex-picker-row:active { background:rgba(255,182,18,0.08); }
     .ex-picker-icon { width:44px;height:44px;border-radius:50%;background:var(--card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--gold);flex-shrink:0;margin-right:14px; }
@@ -194,6 +194,8 @@
     .set-rep-remove { background:none;border:1px solid var(--danger);border-radius:8px;color:var(--danger);font-size:18px;font-weight:700;width:36px;height:36px;cursor:pointer;flex-shrink:0;touch-action:manipulation;line-height:1; }
     .set-rep-remove:active { background:var(--danger);color:#fff; }
 
+    select optgroup { font-weight: 700; color: #000; background: var(--gold); }
+    select option   { font-weight: 400; color: var(--text); background: var(--card2); }
   </style>
 </head>
 <body>
@@ -255,6 +257,18 @@
       <div>
         <label class="field-label">Password</label>
         <input class="field-input" id="authPassword" type="password" placeholder="Password" autocomplete="current-password" />
+      </div>
+      <div id="forgotLink" style="text-align:right;margin-top:4px;margin-bottom:2px">
+        <span onclick="showForgotPassword()" style="font-size:12px;color:var(--gold);cursor:pointer;text-decoration:underline">Forgot password?</span>
+      </div>
+      <div id="forgotSection" style="display:none;margin-bottom:8px">
+        <label class="field-label">Enter your email to reset</label>
+        <input class="field-input" id="resetEmail" type="email" placeholder="you@email.com" autocomplete="email" />
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn-grey" style="flex:1;padding:10px" onclick="cancelForgot()">Cancel</button>
+          <button class="btn-gold" style="flex:2;padding:10px" onclick="sendReset()">Send Reset Email</button>
+        </div>
+        <div id="resetMsg" style="font-size:13px;text-align:center;margin-top:8px;color:var(--gold)"></div>
       </div>
       <div class="auth-error" id="authError"></div>
       <button class="btn-gold" id="authBtn" onclick="doAuth()">Hard Work and Pain</button>
@@ -375,32 +389,11 @@
     <div id="secMachine" style="display:none">
       <div class="form-group">
         <label class="form-label">Machine name</label>
-        <select class="form-input" id="machineName">
-          <option value="" disabled selected>Select machine...</option>
-          <option>Cable Crossover</option>
-          <option>Cable Fly</option>
-          <option>Cable Row (Seated)</option>
-          <option>Cable Tricep Pushdown</option>
-          <option>Chest Press Machine</option>
-          <option>Hack Squat Machine</option>
-          <option>Hamstring Curl Machine</option>
-          <option>Hip Abductor Machine</option>
-          <option>Hip Adductor Machine</option>
-          <option>Hip Thruster Machine</option>
-          <option>Lat Pulldown Machine</option>
-          <option>Leg Extension Machine</option>
-          <option>Leg Press Machine</option>
-          <option>Pec Deck Machine</option>
-          <option>Preacher Curl Machine</option>
-          <option>Rear Delt Fly Machine</option>
-          <option>Seated Calf Raise Machine</option>
-          <option>Shoulder Press Machine</option>
-          <option>Smith Machine</option>
-          <option>Standing Calf Raise Machine</option>
-          <option>T-Bar Row Machine</option>
-          <option>Tricep Dip Machine</option>
-          <option>Other</option>
-        </select>
+        <div class="form-input ex-picker-trigger" id="machineNameDisplay" onclick="openMachinePicker()" style="cursor:pointer;color:var(--muted);display:flex;align-items:center;justify-content:space-between;">
+          <span id="machineNameDisplayText">Select machine...</span>
+          <span style="font-size:18px;color:var(--gold)">&#9660;</span>
+        </div>
+        <input type="hidden" id="machineName" />
       </div>
       <div class="form-group">
         <label class="form-label">Weight (lb)</label>
@@ -551,7 +544,7 @@
 <!-- FIREBASE -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -633,8 +626,37 @@ window.switchAuthTab = function(mode) {
   document.getElementById('tabLogin').classList.toggle('active', mode==='login');
   document.getElementById('tabSignup').classList.toggle('active', mode==='signup');
   document.getElementById('signupNameGroup').style.display = mode==='signup' ? 'block' : 'none';
+  document.getElementById('forgotLink').style.display = mode==='login' ? 'block' : 'none';
+  document.getElementById('forgotSection').style.display = 'none';
   document.getElementById('authBtn').textContent = mode==='login' ? 'Hard Work and Pain' : 'Create Account';
   document.getElementById('authError').textContent = '';
+};
+
+window.showForgotPassword = function() {
+  document.getElementById('forgotSection').style.display = 'block';
+  document.getElementById('forgotLink').style.display = 'none';
+  document.getElementById('resetEmail').value = document.getElementById('authEmail').value;
+  document.getElementById('resetMsg').textContent = '';
+};
+
+window.cancelForgot = function() {
+  document.getElementById('forgotSection').style.display = 'none';
+  document.getElementById('forgotLink').style.display = 'block';
+  document.getElementById('resetMsg').textContent = '';
+};
+
+window.sendReset = async function() {
+  const email = document.getElementById('resetEmail').value.trim();
+  const msg   = document.getElementById('resetMsg');
+  if (!email) { msg.style.color='#e74c3c'; msg.textContent='Please enter your email.'; return; }
+  try {
+    await sendPasswordResetEmail(auth, email);
+    msg.style.color='var(--gold)';
+    msg.textContent='Reset email sent! Check your inbox.';
+  } catch(e) {
+    msg.style.color='#e74c3c';
+    msg.textContent = e.code==='auth/user-not-found' ? 'No account found with that email.' : 'Error: ' + e.message;
+  }
 };
 
 window.doAuth = async function() {
@@ -752,7 +774,7 @@ function exCardHTML(ex, i, dayKey) {
     <div class="ex-stats">
       <div class="ex-stat"><span class="ex-stat-label">Weight</span><span class="ex-stat-val">${wLabel}</span></div>
       <div class="ex-stat"><span class="ex-stat-label">Sets</span><span class="ex-stat-val">${ex.sets}</span></div>
-      ${(Array.isArray(ex.reps)?ex.reps:Array(ex.sets).fill(ex.reps)).map((r,i)=>`<div class="ex-stat"><span class="ex-stat-label">Set ${i+1}</span><span class="ex-stat-val">${r||'—'} reps</span></div>`).join('')}
+      ${(Array.isArray(ex.reps)?ex.reps:Array(ex.sets).fill(ex.reps)).map((r,i)=>{const w=ex.setWeights&&ex.setWeights[i]?ex.setWeights[i]+' lb &mdash; ':'';return `<div class="ex-stat"><span class="ex-stat-label">Set ${i+1}</span><span class="ex-stat-val">${w}${r||'—'} reps</span></div>`;}).join('')}
       <div class="ex-stat"><span class="ex-stat-label">Unit</span><span class="ex-stat-val">${ex.unit}</span></div>
     </div>${notes}</div>`;
 }
@@ -829,15 +851,18 @@ window.editEx = function(dayKey, idx) {
   document.getElementById('exNameDisplay').style.color = 'var(--text)';
   document.getElementById('exSets').value = ex.sets;
   buildSetReps();
-  // populate per-set reps
   var repsArr = Array.isArray(ex.reps) ? ex.reps : Array(ex.sets).fill(typeof ex.reps==='number'?ex.reps:0);
-  for(var i=0;i<ex.sets;i++){var inp=document.getElementById('setRep_'+i);if(inp)inp.value=repsArr[i]||'';}
+  var wtsArr  = Array.isArray(ex.setWeights) ? ex.setWeights : Array(ex.sets).fill(ex.weight||0);
+  for(var i=0;i<ex.sets;i++){
+    var rInp=document.getElementById('setRep_'+i); if(rInp) rInp.value=repsArr[i]||'';
+    var wInp=document.getElementById('setWt_'+i);  if(wInp) wInp.value=wtsArr[i]||'';
+  }
   document.getElementById('exNotes').value = ex.notes || '';
   document.getElementById('exUnit').value  = ex.unit || 'lb';
   setType(ex.type);
   if (ex.type==='barbell') { bbPlates={45:0,35:0,25:0,10:0,5:0,2.5:0}; renderBb(); document.getElementById('bbTotal').textContent=ex.weight; }
   if (ex.type==='dumbbell') { document.getElementById('dbWeight').value = ex.weight; }
-  else if (ex.type==='machine')  { document.getElementById('machineName').value=ex.machineName||''; document.getElementById('machWeight').value=ex.weight; }
+  else if (ex.type==='machine')  { setMachineDisplay(ex.machineName||''); document.getElementById('machWeight').value=ex.weight; }
   else if (ex.type==='misc') { document.getElementById('miscDesc').value=ex.miscDesc||''; document.getElementById('miscWeight').value=ex.weight; }
   document.getElementById('addOverlay').style.display='flex';
 };
@@ -860,6 +885,8 @@ function resetSheetFields() {
   document.getElementById('exNameDisplayText').textContent='Select exercise...';
   document.getElementById('exNameDisplay').style.color='var(--muted)';
   ['exNotes','machineName','miscDesc'].forEach(id => document.getElementById(id).value='');
+  setMachineDisplay('');
+  setMachineDisplay('');
   ['exSets','dbWeight','machWeight','miscWeight'].forEach(id => document.getElementById(id).value='');
   document.getElementById('setRepsArea').innerHTML = '';
   document.getElementById('exUnit').value='lb';
@@ -923,8 +950,9 @@ function updateDbVisual(w) {
 window.saveExercise = async function() {
   const name=document.getElementById('exName').value.trim();
   const sets=parseInt(document.getElementById('exSets').value)||0;
-  var repsArr=[];for(var _i=0;_i<sets;_i++){var _v=parseInt((document.getElementById('setRep_'+_i)||{}).value)||0;repsArr.push(_v);}
+  var repsArr=[],wtsArr=[];for(var _i=0;_i<sets;_i++){var _v=parseInt((document.getElementById('setRep_'+_i)||{}).value)||0;var _w=parseFloat((document.getElementById('setWt_'+_i)||{}).value)||0;repsArr.push(_v);wtsArr.push(_w);}
   const reps=repsArr.length?repsArr:0;
+  const setWeights=wtsArr.every(function(w){return w===0;})?null:wtsArr;
   const notes=document.getElementById('exNotes').value.trim();
   const unit=document.getElementById('exUnit').value;
   if (!name){alert('Please enter an exercise name.');return;}
@@ -1381,9 +1409,9 @@ window.openExPicker = function() {
   document.getElementById('exPickerSearch').value = '';
   exPickerFilter = '';
   exSearchOpen = false;
-  document.getElementById('exPickerSearchBar').style.display = 'none';
   document.querySelectorAll('.ex-filter-chip').forEach(function(c,i){ c.classList.toggle('active', i===0); });
   renderExPickerList();
+  setTimeout(function(){ document.getElementById('exPickerSearch').focus(); }, 100);
 };
 
 window.closeExPicker = function() {
@@ -1447,7 +1475,7 @@ document.addEventListener('click', function(e) {
     menu.style.display = 'none';
 });
 
-function renderExPickerList() {
+window.renderExPickerList = function renderExPickerList() {
   var q = document.getElementById('exPickerSearch').value.trim().toLowerCase();
   var filtered = EX_DATA.filter(function(e) {
     return (!exPickerFilter || e.c === exPickerFilter) && (!q || e.n.toLowerCase().includes(q));
@@ -1475,7 +1503,13 @@ function renderExPickerList() {
     });
   }
   document.getElementById('exPickerList').innerHTML = html;
-}
+};
+
+// Wire up search input after DOM ready
+document.addEventListener('DOMContentLoaded', function() {
+  var searchEl = document.getElementById('exPickerSearch');
+  if (searchEl) searchEl.addEventListener('input', function() { window.renderExPickerList(); });
+});
 
 function exRowHTML(e) {
   var color = CAT_COLORS[e.c] || '#888';
@@ -1492,43 +1526,115 @@ window.buildSetReps = function() {
   var sets = parseInt(document.getElementById('exSets').value) || 0;
   var area = document.getElementById('setRepsArea');
   if (!sets) { area.innerHTML = ''; return; }
-  var existing = [];
-  area.querySelectorAll('.set-rep-input').forEach(function(inp){ existing.push(inp.value); });
+  var existingReps = [], existingWts = [];
+  area.querySelectorAll('.set-rep-input').forEach(function(inp){ existingReps.push(inp.value); });
+  area.querySelectorAll('.set-wt-input').forEach(function(inp){ existingWts.push(inp.value); });
   var html = '';
   for (var i = 0; i < sets; i++) {
-    var val = existing[i] || '';
-    var allBtn = i === 0 ? '<button type="button" class="set-rep-all" onclick="fillAllReps()">&#8594; All</button>' : '';
+    var rVal = existingReps[i] || '';
+    var wVal = existingWts[i] || '';
+    var allBtn = i === 0 ? '<button type="button" class="set-rep-all" onclick="fillAllSets()">&#8594; All</button>' : '';
     html += '<div class="set-rep-row" id="setRow_' + i + '">' +
       '<span class="set-rep-label">Set ' + (i+1) + '</span>' +
-      '<input class="form-input set-rep-input" id="setRep_' + i + '" type="number" placeholder="reps" min="0" value="' + val + '" />' +
+      '<input class="form-input set-wt-input" id="setWt_' + i + '" type="number" placeholder="lb" min="0" value="' + wVal + '" style="width:68px;flex:none" />' +
+      '<input class="form-input set-rep-input" id="setRep_' + i + '" type="number" placeholder="reps" min="0" value="' + rVal + '" />' +
       allBtn +
       '<button type="button" class="set-rep-remove" onclick="removeSet(' + i + ')" title="Remove set">&#8722;</button>' +
       '</div>';
   }
-  area.innerHTML = '<label class="form-label" style="margin-bottom:8px;display:block">Reps per set</label>' + html;
+  area.innerHTML = '<div style="display:flex;gap:8px;padding:0 0 6px 52px"><span style="font-size:11px;color:var(--muted);width:68px">Weight</span><span style="font-size:11px;color:var(--muted)">Reps</span></div>' + html;
 };
 
-window.fillAllReps = function() {
-  var first = document.getElementById('setRep_0');
-  if (!first) return;
-  var val = first.value;
-  document.getElementById('setRepsArea').querySelectorAll('.set-rep-input').forEach(function(inp){ inp.value = val; });
+window.fillAllSets = function() {
+  var firstRep = document.getElementById('setRep_0');
+  var firstWt  = document.getElementById('setWt_0');
+  if (!firstRep) return;
+  var repVal = firstRep.value;
+  var wtVal  = firstWt ? firstWt.value : '';
+  var area = document.getElementById('setRepsArea');
+  area.querySelectorAll('.set-rep-input').forEach(function(inp){ inp.value = repVal; });
+  area.querySelectorAll('.set-wt-input').forEach(function(inp){ inp.value = wtVal; });
 };
 
 window.removeSet = function(idx) {
-  // collect current values, remove the one at idx, rebuild
-  var inputs = document.getElementById('setRepsArea').querySelectorAll('.set-rep-input');
-  var vals = [];
-  inputs.forEach(function(inp){ vals.push(inp.value); });
-  vals.splice(idx, 1);
-  var newCount = vals.length;
-  if (newCount < 1) return; // keep at least 1
-  document.getElementById('exSets').value = newCount;
-  // rebuild then restore values
+  var reps = [], wts = [];
+  document.getElementById('setRepsArea').querySelectorAll('.set-rep-input').forEach(function(inp){ reps.push(inp.value); });
+  document.getElementById('setRepsArea').querySelectorAll('.set-wt-input').forEach(function(inp){ wts.push(inp.value); });
+  reps.splice(idx, 1); wts.splice(idx, 1);
+  if (reps.length < 1) return;
+  document.getElementById('exSets').value = reps.length;
   buildSetReps();
-  var newInputs = document.getElementById('setRepsArea').querySelectorAll('.set-rep-input');
-  newInputs.forEach(function(inp, i){ inp.value = vals[i] || ''; });
+  document.getElementById('setRepsArea').querySelectorAll('.set-rep-input').forEach(function(inp,i){ inp.value = reps[i]||''; });
+  document.getElementById('setRepsArea').querySelectorAll('.set-wt-input').forEach(function(inp,i){ inp.value = wts[i]||''; });
 };
+
+
+// ── MACHINE PICKER ────────────────────────────────────────────────────────────
+const MACHINE_DATA = [
+  {g:'🦾 Arms', items:['Cable Curl','Preacher Curl','Assisted Dip','Tricep Extension','Tricep Pressdown']},
+  {g:'🦾 Back', items:['Assisted Pull-Up','Chest-Supported Row','Iso-Lateral Row','Lat Pulldown','Pullover Machine','Row Machine (Seated Cable Row)','T-Bar Row']},
+  {g:'🧱 Chest', items:['Cable Chest Fly','Chest Press','Decline Chest Press','Incline Chest Press','Pec Deck (Chest Fly)','Smith Machine Bench Press']},
+  {g:'🧘 Core', items:['Ab Crunch','Back Extension','Cable Crunch','Rotary Torso']},
+  {g:'🔗 Full-Body / Multi-Use', items:['Cable Crossover','Functional Trainer','Hammer Strength Iso-Lateral','Multi-Gym Station','Smith Machine']},
+  {g:'🦵 Legs', items:['Calf Raise (Seated)','Calf Raise (Standing)','Glute Drive / Hip Thrust','Glute Kickback','Hack Squat','Hip Abduction','Hip Adduction','Leg Curl (Lying)','Leg Curl (Seated)','Leg Extension','Leg Press','Smith Machine Squat']},
+  {g:'💪 Shoulders', items:['Lateral Raise','Rear Delt Fly','Shoulder Press','Shrug Machine']}
+];
+
+function setMachineDisplay(name) {
+  document.getElementById('machineName').value = name;
+  document.getElementById('machineNameDisplayText').textContent = name || 'Select machine...';
+  document.getElementById('machineNameDisplay').style.color = name ? 'var(--text)' : 'var(--muted)';
+}
+
+function renderMachineList() {
+  var q = document.getElementById('machinePickerSearch').value.trim().toLowerCase();
+  var html = '';
+  if (q) {
+    MACHINE_DATA.forEach(function(group) {
+      var matches = group.items.filter(function(m) { return m.toLowerCase().includes(q); });
+      matches.forEach(function(m) {
+        var safe = m.replace(/"/g,'&quot;');
+        html += '<div class="ex-picker-row" data-machine="' + safe + '"><div class="ex-picker-name">' + m + '</div></div>';
+      });
+    });
+    if (!html) html = '<div style="text-align:center;padding:40px;color:var(--muted)">No machines found</div>';
+  } else {
+    MACHINE_DATA.forEach(function(group) {
+      html += '<div style="padding:10px 16px 6px;font-size:14px;font-weight:700;color:#000;background:var(--gold);">' + group.g + '</div>';
+      group.items.forEach(function(m) {
+        var safe = m.replace(/"/g,'&quot;');
+        html += '<div class="ex-picker-row" data-machine="' + safe + '"><div class="ex-picker-name">' + m + '</div></div>';
+      });
+    });
+  }
+  document.getElementById('machinePickerList').innerHTML = html;
+}
+
+window.openMachinePicker = function() {
+  document.getElementById('machinePickerOverlay').style.display = 'flex';
+  document.getElementById('machinePickerSearch').value = '';
+  renderMachineList();
+  setTimeout(function(){ document.getElementById('machinePickerSearch').focus(); }, 100);
+};
+
+window.closeMachinePicker = function() {
+  document.getElementById('machinePickerOverlay').style.display = 'none';
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+  var mList = document.getElementById('machinePickerList');
+  if (mList) {
+    mList.addEventListener('click', function(e) {
+      var row = e.target.closest('.ex-picker-row');
+      if (row && row.dataset.machine) {
+        setMachineDisplay(row.dataset.machine);
+        window.closeMachinePicker();
+      }
+    });
+  }
+  var mSearch = document.getElementById('machinePickerSearch');
+  if (mSearch) mSearch.addEventListener('input', renderMachineList);
+});
 
 </script>
 
@@ -1538,18 +1644,16 @@ window.removeSet = function(idx) {
     <button onclick="closeExPicker()" style="background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;padding:0;line-height:1;touch-action:manipulation;">&#8592;</button>
     <div style="font-size:18px;font-weight:700;color:var(--text)">Add exercises</div>
     <div style="display:flex;align-items:center;gap:4px">
-      <button onclick="toggleExSearch()" style="background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;padding:6px;touch-action:manipulation;">&#128269;</button>
       <div style="position:relative">
         <button id="exMenuBtn" onclick="toggleExMenu(event)" style="background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;padding:6px;touch-action:manipulation;">&#8942;</button>
         <div id="exPickerMenu" style="display:none;position:absolute;right:0;top:36px;background:var(--card2);border:1px solid var(--border);border-radius:10px;min-width:180px;z-index:600;overflow:hidden;">
           <div class="ex-menu-item" onclick="createCustomExercise()">Create Exercise</div>
-          <div class="ex-menu-item" style="border-top:1px solid var(--border)">Show archived</div>
         </div>
       </div>
     </div>
   </div>
-  <div id="exPickerSearchBar" style="display:none;padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
-    <input id="exPickerSearch" class="form-input" placeholder="Search exercises..." autocomplete="off" oninput="filterExPicker()" style="width:100%" />
+  <div style="padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
+    <input id="exPickerSearch" class="form-input" placeholder="Search exercises..." autocomplete="off" style="width:100%" />
   </div>
   <div id="exFilterChips" style="display:flex;gap:8px;overflow-x:auto;padding:10px 16px;flex-shrink:0;-webkit-overflow-scrolling:touch;scrollbar-width:none;">
     <div class="ex-filter-chip active" onclick="setExFilter(this,'')">All</div>
@@ -1580,6 +1684,19 @@ window.removeSet = function(idx) {
       <button class="btn-gold" style="flex:2" onclick="saveCustomEx()">Use This Exercise</button>
     </div>
   </div>
+</div>
+
+<!-- MACHINE PICKER OVERLAY -->
+<div id="machinePickerOverlay" style="display:none;position:fixed;inset:0;background:var(--dark);z-index:500;flex-direction:column;">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
+    <button onclick="closeMachinePicker()" style="background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;padding:0;line-height:1;touch-action:manipulation;">&#8592;</button>
+    <div style="font-size:18px;font-weight:700;color:var(--text)">Select Machine</div>
+    <div style="width:32px"></div>
+  </div>
+  <div style="padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
+    <input id="machinePickerSearch" class="form-input" placeholder="Search machines..." autocomplete="off" style="width:100%" />
+  </div>
+  <div id="machinePickerList" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;"></div>
 </div>
 </body>
 </html>
